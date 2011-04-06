@@ -2,7 +2,7 @@
  * Version: RCSL 1.0/RPSL 1.0 
  *  
  * Portions Copyright (c) 1995-2002 RealNetworks, Inc. All Rights Reserved. 
- *      
+ *         
  * The contents of this file, and the files included with this file, are 
  * subject to the current version of the RealNetworks Public Source License 
  * Version 1.0 (the "RPSL") available at 
