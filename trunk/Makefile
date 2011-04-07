@@ -55,6 +55,11 @@ sinclude $(DEPS)
 $(OBJ_DIR)/%.o:$(SRC_DIR)/%.c
 	$(CC) $< -o $@ -c $(CFLAGS) $(INCLUDE) 
 
+$(OBJ_DIR)/asmpoly.o:$(SRC_DIR)/asmpoly.s
+	$(CC) $< -o $@ -c 
+
+$(OBJ_DIR)/asmmisc.o:$(SRC_DIR)/asmmisc.s
+	$(CC) $<  -o $@ -c 
 
 
 
