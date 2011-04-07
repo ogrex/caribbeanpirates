@@ -26,6 +26,7 @@ rt_uint8_t mp3_fd_buffer[MP3_AUDIO_BUF_SZ];
 rt_uint32_t current_offset = 0;
 int current_sample_rate = 0;
 
+int mem_inited=0;
 
 int fd;	/* sound device file descriptor */
 
@@ -116,12 +117,19 @@ static rt_int32_t mp3_decoder_fill_buffer(struct mp3_decoder* decoder)
 
 void* sbuf_alloc()
 {
-    return malloc(MP3_DECODE_MP_SZ * 2);
+static void* address;
+if(!mem_inited)
+{
+	address=malloc(MP3_DECODE_MP_SZ * 2);
+	mem_inited=1;
+}
+    return address;
 }
 
 
 void sbuf_release(void* ptr)
 {
+	mem_inited=0;
     free(ptr);
 }
 
