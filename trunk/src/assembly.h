@@ -57,7 +57,7 @@
 #define _ASSEMBLY_H
 
 
-#pragma warning( disable : 4035 )	/* complains about inline asm not returning a value */
+//#pragma warning( disable : 4035 )	/* complains about inline asm not returning a value */
 
 
 static __inline int FASTABS(int x) 
