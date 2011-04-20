@@ -80,7 +80,7 @@ SOFTWARE.
 //#define assert RT_ASSERT
 #endif
 
-#include "rtdef.h"
+#include "def.h"
 #include "JSON_parser.h"
 
 #ifdef _MSC_VER
@@ -773,7 +773,7 @@ static int add_char_to_parse_buffer(JSON_parser jc, int next_char, int next_clas
 
 
 int
-JSON_parser_char(JSON_parser jc, int next_char)
+JSON_parser_char(JSON_parser jc,unsigned char next_char)
 {
 /*
     After calling new_JSON_parser, call this function for each character (or
@@ -791,10 +791,8 @@ JSON_parser_char(JSON_parser jc, int next_char)
 /*
     Determine the character's class.
 */
-    if (next_char < 0) {
-        jc->error = JSON_E_INVALID_CHAR;
-        return false;
-    }
+
+
     if (next_char >= 128) {
         next_class = C_ETC;
     } else {

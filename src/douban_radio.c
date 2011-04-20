@@ -13,8 +13,6 @@
 #define URL_SIZE	128
 
 
-
-
 #define PARSE_TYPE_UNKNOW	0x00
 #define PARSE_TYPE_PICTURE	0x01
 #define PARSE_TYPE_ARTIST	0x02
@@ -160,7 +158,7 @@ int douban_radio_playlist_load(struct douban_radio* douban)
 		ptr += length;
 	} while (ptr < buffer + session->size);
 	length = ptr - buffer;
-	printf("total %d bytes\n", length);
+	printf("total %d bytes\n", (int)length);
 	http_session_close(session); session = 0;
 
 	/* parse douban song list */
@@ -176,7 +174,7 @@ int douban_radio_playlist_load(struct douban_radio* douban)
 	if (url != 0) free(url);
 	//if (session != 0) http_session_close(session);
 
-	return -RT_ERROR;
+	return -1;
 }
 
 

@@ -1,6 +1,6 @@
 //#ifndef __DOUBAN_RADIO_H__
 //#define __DOUBAN_RADIO_H__
-#include "rtdef.h"
+#include "def.h"
 
 
 struct douban_song_item

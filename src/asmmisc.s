@@ -30,7 +30,7 @@
 ; *    http://www.helixcommunity.org/content/tck 
 ; * 
 ; * Contributor(s): 
-; *  
+; *  2011.4.1.Rex   change to GNU
 ; * ***** END LICENSE BLOCK ***** */ 
 
 
