@@ -132,7 +132,7 @@ extern void delete_JSON_parser(JSON_parser jc);
 
     \return Non-zero, if all characters passed to this function are part of are valid JSON.
 */
-extern int JSON_parser_char(JSON_parser jc, int next_char);
+extern int JSON_parser_char(JSON_parser jc, unsigned char next_char);
 
 /*! \brief Finalize parsing.
 

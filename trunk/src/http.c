@@ -1,15 +1,5 @@
-/*#define WIN_32
 
 
-#ifdef WIN_32
-
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#pragma comment (lib, "Ws2_32.lib")
-#pragma comment (lib, "Mswsock.lib")
-#pragma comment (lib, "AdvApi32.lib")
-#endif
-*/
 #include <netdb.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -31,6 +21,28 @@
 
 
 
+
+#ifdef WIN_32
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment (lib, "Ws2_32.lib")
+#pragma comment (lib, "Mswsock.lib")
+#pragma comment (lib, "AdvApi32.lib")
+bool http_session_init()
+{
+// Initialize Winsock
+iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+if (iResult != 0) {
+    printf("WSAStartup failed: %d\n", iResult);
+    return 1;
+}
+ printf("initiates use of the Winsock DLL \n", iResult);
+ return 0;
+
+}
+#endif
+
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "28992"
 #define MAX_MSG_SIZE 1024
@@ -47,23 +59,12 @@ const char _http_get[] = "GET %s HTTP/1.1\r\n"
 						"User-Agent:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; )\r\n"
 						"Connection: Keep-Alive\r\n"
 						"Cookie: name=\"RT-Thread\"; ac=\"1281620086\"\r\n\r\n";
-						
-/*
-#ifdef WIN_32
-bool http_session_init()
-{
-// Initialize Winsock
-iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-if (iResult != 0) {
-    printf("WSAStartup failed: %d\n", iResult);
-    return 1;
-}
- printf("initiates use of the Winsock DLL \n", iResult);
- return 0;
+				
 
-}
-#endif
-*/
+
+const char _shoutcast_get[] = "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: RT-Thread HTTP Agent\r\nIcy-MetaData: 1\r\nConnection: close\r\n\r\n";
+rt_uint32_t total = 0;
+
 
 void test ()
 {
@@ -83,12 +84,6 @@ char *server_name="www.baidu.com";
 struct sockaddr_in ser_addr,cli_addr;
 
 cli_sockfd=socket(AF_INET,SOCK_STREAM,0);//AF_INET:IPv4 address family. SOCK_STREAM: Uses TCP.
-
-
-
-
-
-
 
 
 
@@ -328,6 +323,31 @@ int http_is_error_header(char *mime_buf)
 }
 
 
+int shoutcast_is_error_header(char *mime_buf)
+{
+	char *line;
+	int i;
+	int code;
+
+	line = strstr(mime_buf, "ICY");
+	line += strlen("ICY");
+
+	// Advance past minor protocol version number
+	line++;
+
+	// Advance past any whitespace characters
+	while((*line == ' ') || (*line == '\t')) line++;
+
+	// Terminate string after status code
+	for(i = 0; ((line[i] != ' ') && (line[i] != '\t')); i++);
+	line[i] = '\0';
+
+	code = (int)strtol(line, 0, 10);
+	if( code == 200 )
+		return 0;
+	else
+		return code;
+}
 
 int http_parse_content_length(char *mime_buf)
 {
@@ -516,3 +536,292 @@ int http_session_close(struct http_session* session)
 
 	return 0;
 }
+
+
+
+
+
+//
+// This is the main HTTP client connect work.  Makes the connection
+// and handles the protocol and reads the return headers.  Needs
+// to leave the stream at the start of the real data.
+//
+static int shoutcast_connect(struct shoutcast_session* session,
+    struct sockaddr_in* server, char* host_addr, const char* url)
+{
+	int  socket_handle;
+	int peer_handle;
+	int rc;
+	char mimeBuffer[256];
+	int timeout = HTTP_RCV_TIMEO;
+
+		char *buf;
+		rt_uint32_t length;
+
+	if((socket_handle = socket( AF_INET,SOCK_STREAM,0)) < 0)
+	{
+		printf( "ICY: SOCKET FAILED\n" );
+		return -1;
+	}
+
+	printf("socket descriptor:%d \n", socket_handle);
+
+	/* set recv timeout option */
+	setsockopt(socket_handle, SOL_SOCKET, SO_RCVTIMEO, (void*)&timeout, sizeof(timeout));
+
+	peer_handle = connect( socket_handle, (struct sockaddr *) server, sizeof(*server));
+	if ( peer_handle < 0 )
+	{
+		printf( "ICY: CONNECT FAILED %i\n", peer_handle );
+	//	close(socket_handle);
+		
+		return -1;
+	}
+
+	printf("Connect Success!\n\n");
+
+	{
+
+
+		buf = (char *)malloc (512);
+		if (*url)
+			length = snprintf(buf, 512, _shoutcast_get, url, host_addr);
+		else
+			length = snprintf(buf, 512, _shoutcast_get, "/", host_addr);
+
+		rc = send(socket_handle, buf, length, 0);
+
+		printf("SHOUTCAST request Sended:%d/%d\n\n%s", rc,(int)length,buf);
+		
+		/* release buffer */
+		free(buf);
+	}
+
+	/* read the header information */
+	while ( 1 )
+	{
+		// read a line from the header information.
+		rc = http_read_line(socket_handle, mimeBuffer, 100);
+		printf(">>%s", mimeBuffer);
+
+		if ( rc < 0 )
+		{
+			//lwip_close(socket_handle);
+			return rc;
+		}
+
+		// End of headers is a blank line.  exit.
+		if (rc == 0) break;
+		if ((rc == 2) && (mimeBuffer[0] == '\r')) break;
+
+		if(strstr(mimeBuffer, "ICY")) // First line of header, contains status code. Check for an error code
+		{
+			rc = shoutcast_is_error_header(mimeBuffer);
+			if(rc)
+			{
+				printf("ICY: status code = %d!\n", rc);
+			//	lwip_close(socket_handle);
+				return -rc;
+			}
+		}
+		
+		if (strstr(mimeBuffer, "HTTP/1."))
+		{
+			rc = http_is_error_header(mimeBuffer);
+			if(rc)
+			{
+				printf("HTTP: status code = %d!\n", rc);
+	//			lwip_close(socket_handle);
+				return -rc;
+			}
+		}
+
+		if (strstr(mimeBuffer, "icy-name:"))
+		{
+			/* get name */
+			char* name;
+
+			name = mimeBuffer + strlen("icy-name:");
+			session->station_name = strdup(name);
+			printf("station name: %s\n", session->station_name);
+		}
+
+		if (strstr(mimeBuffer, "icy-br:"))
+		{
+			/* get bitrate */
+			session->bitrate = strtol(mimeBuffer + strlen("icy-br:"), 0, 10);
+			printf("bitrate: %d\n", session->bitrate);
+		}
+
+		if (strstr(mimeBuffer, "icy-metaint:"))
+		{
+			/* get metaint */
+			session->metaint = strtol(mimeBuffer + strlen("icy-metaint:"), 0, 10);
+			printf("metaint: %d\n", (int)session->metaint);
+		}
+		
+		if (strstr(mimeBuffer, "content-type:"))
+		{
+			/* check content-type */
+			if (strstr(mimeBuffer, "audio/mpeg") == 0)
+			{
+				printf("ICY content is not audio/mpeg.\n");
+		//		lwip_close(socket_handle);
+				return -1;
+			}
+		}
+
+		if (strstr(mimeBuffer, "Content-Type:"))
+		{
+			/* check content-type */
+			if (strstr(mimeBuffer, "audio/mpeg") == 0)
+			{
+				printf("ICY content is not audio/mpeg.\n");
+			//	lwip_close(socket_handle);
+				return -1;
+			}
+		}
+	}
+
+	// We've sent the request, and read the headers.  SockHandle is
+	// now at the start of the main data read for a file io read.
+	return socket_handle;
+}
+
+
+
+
+
+
+
+
+struct shoutcast_session* shoutcast_session_open(const char* url)
+{
+	int peer_handle = 0;
+	struct sockaddr_in server;
+	char *request, host_addr[32];
+	struct shoutcast_session* session;
+
+	total = 0;
+	
+    session = (struct shoutcast_session*) malloc(sizeof(struct shoutcast_session));
+	if(session == 0) return 0;
+
+	session->metaint = 0;
+	session->current_meta_chunk = 0;
+	session->bitrate = 0;
+	session->station_name = 0;
+
+	/* Check valid IP address and URL */
+	if(http_resolve_address(&server, url, &host_addr[0], &request) != 0)
+	{
+		free(session);
+		return 0;
+	}
+
+
+
+	if((peer_handle = shoutcast_connect(session, &server, host_addr, request)) < 0)
+	{
+        printf("SHOUTCAST: failed to connect to '%s'!\n", host_addr);
+		if (session->station_name != 0)
+			free(session->station_name);
+		free(session);
+		return 0;
+	}
+
+
+	// http connect returns valid socket.  Save in handle list.
+	session->socket = peer_handle;
+	/* open successfully */
+	return session;
+}
+
+
+
+rt_size_t shoutcast_session_read(struct shoutcast_session* session, rt_uint8_t *buffer, rt_size_t length)
+{
+	int bytesRead = 0;
+	int totalRead = 0;
+	int left = length;
+	static rt_uint32_t first_meta_size = 0;
+
+	// Read until: there is an error, we've read "size" bytes or the remote
+	//             side has closed the connection.
+	do
+	{
+		bytesRead = recv(session->socket, buffer + totalRead, left, 0);
+		if(bytesRead <= 0) 
+		{
+			break;
+		}
+
+		total += bytesRead;
+
+		left -= bytesRead;
+		totalRead += bytesRead;
+	} while(left);
+
+	/* handle meta */
+	if (first_meta_size > 0)
+	{
+		/* skip meta data */
+		memmove(&buffer[0], &buffer[first_meta_size], totalRead - first_meta_size);
+
+		// rt_kprintf("remove meta: len %d\n", first_meta_size);
+
+		totalRead = totalRead - first_meta_size;
+		first_meta_size = 0;
+		session->current_meta_chunk = totalRead;
+	}
+	else
+	{
+		if (session->current_meta_chunk + totalRead == session->metaint)
+		{
+			rt_uint8_t meta_data;
+			recv(session->socket, &meta_data, 1, 0);
+		
+			/* remove meta data in next packet */
+			first_meta_size = meta_data * 16;
+			session->current_meta_chunk = 0;
+
+			// rt_kprintf("get meta: len %d\n", first_meta_size);
+		}
+		else if (session->current_meta_chunk + totalRead > session->metaint)
+		{
+			int meta_length, next_chunk_length;
+
+			// rt_kprintf("c: %d, total: %d, m: %d\n", session->current_meta_chunk, totalRead, session->metaint);
+
+			/* get the length of meta data */
+			meta_length = buffer[session->metaint - session->current_meta_chunk] * 16;
+			next_chunk_length = totalRead - (session->metaint - session->current_meta_chunk) - 
+				(meta_length + 1);
+
+			// rt_kprintf("l: %d, n: %d\n", meta_length, next_chunk_length);
+
+			/* skip meta data */
+			memmove(&buffer[session->metaint - session->current_meta_chunk], 
+				&buffer[session->metaint - session->current_meta_chunk + meta_length + 1],
+				next_chunk_length);
+
+			/* set new current meta chunk */
+			session->current_meta_chunk = next_chunk_length;
+			totalRead = totalRead - (meta_length + 1);
+		}
+		else 
+		{
+			session->current_meta_chunk += totalRead;
+		}
+	}
+
+	return totalRead;
+}
+
+
+
+
+
+
+
+

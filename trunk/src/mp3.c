@@ -13,7 +13,7 @@
 #include "http.h"
 #include "douban_radio.h"
 #include "mp3dec.h"
-#include "rtdef.h"
+#include "def.h"
 
 #define MP3_AUDIO_BUF_SZ    (5 * 1024)
 #ifndef MIN
@@ -356,7 +356,7 @@ if(8==i){mp3(mm);}
 
 }
 
-int init_dev()
+int init_dev(int freq)
 {
 
 int arg,status;
@@ -382,7 +382,7 @@ int arg,status;
     perror("SOUND_PCM_WRITE_CHANNELS ioctl failed");
 
 
-  arg = 22050;	   /* sampling rate */
+  arg = freq;	   /* sampling rate */
   status = ioctl(fd, SOUND_PCM_WRITE_RATE, &arg);
   if (status == -1)
     perror("SOUND_PCM_WRITE_WRITE ioctl failed");
@@ -466,5 +466,45 @@ printf("%s:%s\n",douban->items[0].artist,douban->items[0].title );
 }
 
 
+
+
+
+static rt_size_t ice_fetch(void* parameter, rt_uint8_t *buffer, rt_size_t length)
+{
+
+	return shoutcast_session_read(parameter,buffer, length);
+}
+
+
+
+void ice_mp3(const char* url)
+{
+	struct shoutcast_session* session;
+	struct mp3_decoder* decoder;
+
+	session = shoutcast_session_open(url);
+	if(0==session) return;
+
+
+	decoder = mp3_decoder_create();
+
+			if (decoder != 0)
+			{
+				decoder->fetch_data = ice_fetch;
+				decoder->fetch_parameter = session;
+
+				current_offset = 0;
+
+
+
+				while (mp3_decoder_run(decoder) != -1);
+
+				/* delete decoder object */
+				//mp3_decoder_delete(decoder);
+	
+			}
+
+
+}
 
 
