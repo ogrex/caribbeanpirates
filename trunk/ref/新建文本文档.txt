@@ -1,0 +1,6 @@
+1   华语MHz 2 欧美MHz 3 70MHz  4 80MHz  5 90MHz 6  粤语MHz  7 摇滚MHz  8 民谣MHz  9 轻音乐MHz 10 电影原声MHz 
+13 爵士MHz  14 电子MHz   15 说唱MHz  16 R&BMHz  17 日语MHz 18 韩语MHz  19 Puma SocialMHz  20 女声MHz  21 特仑苏MHz  22 法语MHz  26 豆瓣音乐人MHz 
+
+
+1
+http://207.200.96.134:80/stream/1047
