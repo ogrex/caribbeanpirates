@@ -7,8 +7,11 @@ int main()
 
 init_dev(22050);
 
-ice_mp3(xx);
-douban_radio(2);
+
+
+//mp3("/nfs/home/caribbeanpirates/bin/Business.mp3");
+//ice_mp3(xx);
+//douban_radio(2);
 return 0;
 
 

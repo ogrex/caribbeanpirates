@@ -44,7 +44,7 @@ rt_size_t shoutcast_session_read(struct shoutcast_session* session, rt_uint8_t *
 
 
 
-
+void getjpg(char * url);
 
 
 
