@@ -823,5 +823,43 @@ rt_size_t shoutcast_session_read(struct shoutcast_session* session, rt_uint8_t *
 
 
 
+void getjpg(char * url)
+
+{
+		rt_size_t length;
+struct http_session* session;
+char *buffer,*ptr;
+FILE *stream;
+
+
+//´æ·ÅÂ·¾¶
+if((stream  = fopen("C:\\Users\\gulei\\Documents\\Visual Studio 2008\\Projects\\1\\Debug\\hello.jpg", "w+b" ))==NULL)
+return;
+
+#ifdef WIN_32
+http_session_init();
+#endif
+
+session=http_session_open(url);
+buffer =(char*)malloc(session->size);
+ptr=buffer;
+
+	do
+	{
+		length = http_session_read(session, ptr, buffer + session->size - ptr);
+		if (length <= 0) break;
+		ptr += length;
+		
+	} while (ptr < buffer + session->size);
+fwrite(buffer,1,(int) session->size,stream);
+
+
+
+free(buffer);
+
+fclose( stream );
+
+
+}
 
 

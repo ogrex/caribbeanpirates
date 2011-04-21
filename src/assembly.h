@@ -73,6 +73,56 @@ static __inline int FASTABS(int x)
 
 
 typedef long long Word64;
+typedef long long __int64 ;
+#if (defined i386 && defined linux) 
+
+static __inline Word64 MADD64(Word64 sum, int x, int y)
+{
+
+
+	 return (sum + ((__int64)x * y));
+	/* equivalent to return (sum + ((__int64)x * y)); */
+}
+
+static __inline int MULSHIFT32(int x, int y)	
+{
+		
+
+
+return (__int64)x*y>>32;
+
+
+}
+static __inline Word64 SHL64(Word64 x, int n)
+{
+return x<<n;
+}
+
+
+
+
+static __inline Word64 SAR64(Word64 x, int n)
+{
+return x >> n;
+}
+
+static __inline int CLZ(int x)
+{
+	int numZeros;
+
+	if (!x)
+		return (sizeof(int) * 8);
+
+	numZeros = 0;
+	while (!(x & 0x80000000)) {
+		numZeros++;
+		x <<= 1;
+	} 
+
+	return numZeros;
+}
+
+#else
 
 #define MULSHIFT32	xmp3_MULSHIFT32
 extern int MULSHIFT32(int x, int y);
@@ -98,7 +148,7 @@ static __inline int CLZ(int x)
 	return numZeros;
 }
 
-
+#endif
 
 
 

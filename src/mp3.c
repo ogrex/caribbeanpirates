@@ -10,6 +10,16 @@
 #include <sys/ioctl.h>
 #include <linux/soundcard.h>
 
+
+
+#if (defined i386 && defined linux) 
+/* Use the newer ALSA API */
+#define ALSA_PCM_NEW_HW_PARAMS_API
+#include <alsa/asoundlib.h>
+
+#endif
+
+
 #include "http.h"
 #include "douban_radio.h"
 #include "mp3dec.h"
@@ -356,6 +366,86 @@ if(8==i){mp3(mm);}
 
 }
 
+
+
+
+
+#if (defined i386 && defined linux) 
+int init_dev(int freq)
+{
+int rc;
+snd_pcm_t *handle;
+snd_pcm_hw_params_t *params;
+
+
+long loops;
+
+int size;
+
+
+unsigned int val;
+int dir;
+snd_pcm_uframes_t frames;
+char *buffer;
+
+
+/* Open PCM device for playback. */
+rc = snd_pcm_open(&handle, "default",
+SND_PCM_STREAM_PLAYBACK, 0);
+
+if (rc < 0) {
+fprintf(stderr,
+"unable to open pcm device: %s\n",
+snd_strerror(rc));
+exit(1);
+}
+printf("pcm device opened!\n");
+
+/* Allocate a hardware parameters object. */
+snd_pcm_hw_params_alloca(&params);
+/* Fill it in with default values. */
+snd_pcm_hw_params_any(handle, params);	
+
+
+/* Set the desired hardware parameters. */
+
+/* Interleaved mode */
+snd_pcm_hw_params_set_access(handle, params,
+SND_PCM_ACCESS_RW_INTERLEAVED);
+
+/* Signed 16-bit little-endian format */
+snd_pcm_hw_params_set_format(handle, params,
+SND_PCM_FORMAT_S16_LE);
+
+/* Two channels (stereo) */
+snd_pcm_hw_params_set_channels(handle, params, 2);
+
+/* 44100 bits/second sampling rate (CD quality) */
+val = freq;
+snd_pcm_hw_params_set_rate_near(handle, params,
+&val, &dir);
+
+/* Set period size to 32 frames. */
+frames = 32;
+snd_pcm_hw_params_set_period_size_near(handle,
+params, &frames, &dir);
+
+/* Write the parameters to the driver */
+rc = snd_pcm_hw_params(handle, params);
+if (rc < 0) {
+fprintf(stderr,
+"unable to set hw parameters: %s\n",
+snd_strerror(rc));
+exit(1);
+}
+
+
+
+}
+
+
+
+#else
 int init_dev(int freq)
 {
 
@@ -390,6 +480,10 @@ int arg,status;
 
 return 0;
 }
+
+
+#endif
+
 
 struct douban_radio* douban_radio_open(int channel)
 {
