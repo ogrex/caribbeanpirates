@@ -2,5 +2,30 @@
 13 爵士MHz  14 电子MHz   15 说唱MHz  16 R&BMHz  17 日语MHz 18 韩语MHz  19 Puma SocialMHz  20 女声MHz  21 特仑苏MHz  22 法语MHz  26 豆瓣音乐人MHz 
 
 
-1
+委内瑞拉FM 104.9              FM EL VECINAL 104.9
 http://207.200.96.134:80/stream/1047
+
+土耳其音乐电台				SUPER FM - EN IYI MUZIK
+http://91.121.150.166:9080/
+
+美国时政新闻台 				Alex Jones - Infowars.com	 Talk News Political
+http://76.73.4.29:80
+
+海地 太子港新闻    16000
+http://74.86.76.2:7088
+
+泰国曼谷 Cool93 Fahrenheit
+http://203.150.224.142:8000
+
+加纳 Adom 106.3
+http://67.159.60.45:8002
+
+
+中国古典音乐
+http://72.9.152.74:8202
+
+http://64.71.150.28:10232 16000
+中国基督电台
+
+http://94.76.216.200:8240
+华人流行乐社区
