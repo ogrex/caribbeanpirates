@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <dirent.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -24,6 +23,8 @@
 #include "douban_radio.h"
 #include "mp3dec.h"
 #include "def.h"
+#include "device.h"
+
 
 #define MP3_AUDIO_BUF_SZ    (5 * 1024)
 #ifndef MIN
@@ -40,7 +41,19 @@ int current_sample_rate = 0;
 
 int mem_inited=0;
 
-int fd;	/* sound device file descriptor */
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -133,6 +146,11 @@ static void* address;
 if(!mem_inited)
 {
 	address=malloc(MP3_DECODE_MP_SZ * 2);
+
+#if (defined i386 && defined linux)
+	playback.data_buf=address;
+#endif
+
 	mem_inited=1;
 }
     return address;
@@ -152,7 +170,7 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 	rt_uint16_t* buffer;
 	rt_uint32_t  delta;
 
-
+	int i;
 //	if (player_is_playing() != RT_TRUE) return -1;
 
 	if ((decoder->read_ptr == NULL) || decoder->bytes_left < 2*MAINBUF_SIZE)
@@ -244,14 +262,12 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 		MP3GetLastFrameInfo(decoder->decoder, &decoder->frame_info);
 
 
-		printf("outputSamps:%d samplerate:%d bps:%d bitPerSample:%d frame:%d ",
-			decoder->frame_info.outputSamps,
+		printf("samplerate:%d bps:%d  frame:%d ",
 			decoder->frame_info.samprate,
 			decoder->frame_info.bitrate,
-			decoder->frame_info.bitsPerSample,
 			(int)decoder->frames);
-		fflush(stdout);
-		printf("\r");
+		fflush(stdout);printf("\r");
+		
 
         /* set sample rate */
 		if (decoder->frame_info.samprate != current_sample_rate)
@@ -278,10 +294,15 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 				}
 				outputSamps *= 2;
 			}
+#if (defined i386 && defined linux)
+			//frames=outputSamps/2;
+			//  snd_pcm_writei(handle, buffer, frames);
+			//SNDWAV_WritePcm(buffer, outputSamps * sizeof(rt_uint16_t));
 
-		
-			write(fd, buffer, outputSamps * sizeof(rt_uint16_t));
+#else
+			snd_write(buffer, outputSamps * sizeof(rt_uint16_t));	
 
+#endif
 
 	
 		//	rt_device_write(decoder->snd_device, 0, buffer, outputSamps * sizeof(rt_uint16_t));
@@ -342,147 +363,8 @@ void mp3(char* filename)
 }
 
 
-void init_dir()
-{
-int i=0;
-char mm[30];
-char * mn="/mnt/";
-struct dirent * direntp;
-DIR * dirp;
-dirp=opendir("/mnt/");
-while ((direntp =readdir(dirp))!=NULL)
-{i++;
-printf("ff");
-if(strstr(direntp->d_name,".mp3")!=NULL) {
-sprintf(mm,"%s%s",mn,direntp->d_name);
-
-printf("%s\n",mm);
-}
-
-if(8==i){mp3(mm);}
-
-}
 
 
-}
-
-
-
-
-
-#if (defined i386 && defined linux) 
-int init_dev(int freq)
-{
-int rc;
-snd_pcm_t *handle;
-snd_pcm_hw_params_t *params;
-
-
-long loops;
-
-int size;
-
-
-unsigned int val;
-int dir;
-snd_pcm_uframes_t frames;
-char *buffer;
-
-
-/* Open PCM device for playback. */
-rc = snd_pcm_open(&handle, "default",
-SND_PCM_STREAM_PLAYBACK, 0);
-
-if (rc < 0) {
-fprintf(stderr,
-"unable to open pcm device: %s\n",
-snd_strerror(rc));
-exit(1);
-}
-printf("pcm device opened!\n");
-
-/* Allocate a hardware parameters object. */
-snd_pcm_hw_params_alloca(&params);
-/* Fill it in with default values. */
-snd_pcm_hw_params_any(handle, params);	
-
-
-/* Set the desired hardware parameters. */
-
-/* Interleaved mode */
-snd_pcm_hw_params_set_access(handle, params,
-SND_PCM_ACCESS_RW_INTERLEAVED);
-
-/* Signed 16-bit little-endian format */
-snd_pcm_hw_params_set_format(handle, params,
-SND_PCM_FORMAT_S16_LE);
-
-/* Two channels (stereo) */
-snd_pcm_hw_params_set_channels(handle, params, 2);
-
-/* 44100 bits/second sampling rate (CD quality) */
-val = freq;
-snd_pcm_hw_params_set_rate_near(handle, params,
-&val, &dir);
-
-/* Set period size to 32 frames. */
-frames = 32;
-snd_pcm_hw_params_set_period_size_near(handle,
-params, &frames, &dir);
-
-/* Write the parameters to the driver */
-rc = snd_pcm_hw_params(handle, params);
-if (rc < 0) {
-fprintf(stderr,
-"unable to set hw parameters: %s\n",
-snd_strerror(rc));
-exit(1);
-}
-
-
-
-}
-
-
-
-#else
-int init_dev(int freq)
-{
-
-int arg,status;
-  arg = 2;  /* mono or stereo */ 
-
- /* open sound device */
-  fd = open("/dev/dsp", 1);
-  if (fd < 0) {
-    perror("open of /dev/dsp failed");
-    exit(1);
-  }
-
-  /* set sampling parameters */
-  arg = 16;	   /* sample size */
-  status = ioctl(fd, SOUND_PCM_WRITE_BITS, &arg);
-  if (status == -1)
-    perror("SOUND_PCM_WRITE_BITS ioctl failed");
-
-
-  arg = 2;  /* mono or stereo */
-  status = ioctl(fd, SOUND_PCM_WRITE_CHANNELS, &arg);
-  if (status == -1)
-    perror("SOUND_PCM_WRITE_CHANNELS ioctl failed");
-
-
-  arg = freq;	   /* sampling rate */
-  status = ioctl(fd, SOUND_PCM_WRITE_RATE, &arg);
-  if (status == -1)
-    perror("SOUND_PCM_WRITE_WRITE ioctl failed");
-
-
-return 0;
-}
-
-
-#endif
 
 
 struct douban_radio* douban_radio_open(int channel)
