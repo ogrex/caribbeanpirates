@@ -16,7 +16,7 @@ INCLUDE=\
 ###################lib文件及路径######################################
 LIBS =  -lpthread -lminigui -lm -lpng -ljpeg  -lmgext -lts
 ###################编译选项及编译器###################################
-PLATFORM=arm-linux-
+PLATFORM=#arm-linux-
 CC=$(PLATFORM)gcc
 AS=$(PLATFORM)as
 
@@ -44,7 +44,8 @@ all:$(OBJS)
 	@echo $(DEPS_DIR)
 	$(CC) -o $(PROGRAM) $(OBJS) $(LDFLAGS) 
 
-
+$(DEPS_DIR)/%.d: $(SRC_DIR)/%.c
+	$(CC) -MM $(INCLUDE) $(CFLAGS) $< > $@
 
 sinclude $(DEPS)
 
