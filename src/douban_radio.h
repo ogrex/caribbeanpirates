@@ -1,5 +1,5 @@
-//#ifndef __DOUBAN_RADIO_H__
-//#define __DOUBAN_RADIO_H__
+#ifndef __DOUBAN_RADIO_H__
+#define __DOUBAN_RADIO_H__
 #include "def.h"
 
 
@@ -32,4 +32,4 @@ rt_size_t douban_radio_read(struct douban_radio* douban, char *buffer, rt_size_t
 
 
 
-//#endif
+#endif

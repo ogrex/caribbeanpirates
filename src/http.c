@@ -1,5 +1,3 @@
-
-
 #include <netdb.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -19,9 +17,9 @@
 #include "http.h"
 #include "malloc.h"
 
-
-
-
+#include "uart.h"
+#include "douban_radio.h"
+//#include "uart_def.h"
 #ifdef WIN_32
 
 #include <winsock2.h>
@@ -48,6 +46,7 @@ if (iResult != 0) {
 #define MAX_MSG_SIZE 1024
 
 #define HTTP_RCV_TIMEO	6000 /* 6 second */
+
 
 	//WSADATA wsaData;
 	int iResult;
@@ -821,20 +820,25 @@ rt_size_t shoutcast_session_read(struct shoutcast_session* session, rt_uint8_t *
 
 
 
-
+/*
 
 void getjpg(char * url)
-
 {
 		rt_size_t length;
-struct http_session* session;
-char *buffer,*ptr;
-FILE *stream;
-
+		struct http_session* session;
+		char *buffer,*ptr;
+		//FILE *stream;
+		int uart_fd;
+		int nread;
+		char protocol_buff[5];
+		char data_buff[20];
+		
+		uart_fd = Uart_Init(uart_dev);
 
 //存放路径
-if((stream  = fopen("C:\\Users\\gulei\\Documents\\Visual Studio 2008\\Projects\\1\\Debug\\hello.jpg", "w+b" ))==NULL)
-return;
+//if((stream  = fopen("/hello.jpg", "w+b" ))==NULL)
+//return;
+//else printf("file is open!\n");
 
 #ifdef WIN_32
 http_session_init();
@@ -851,15 +855,59 @@ ptr=buffer;
 		ptr += length;
 		
 	} while (ptr < buffer + session->size);
-fwrite(buffer,1,(int) session->size,stream);
+	//fwrite(buffer,1,(int) session->size,stream);
 
+	printf("here!\n");
+	write(uart_fd, p_start, 1);									//发出图像传输的开始信息
+	if((nread = uart_read(uart_fd, protocol_buff, 1 , 2)) > 0)//接收反馈回来的信息，并准备传输图像
+	{
+		if(protocol_buff[0] == COM_START)
+		{
+			printf("begin to send jpg's length!\n");
+			sprintf(data_buff ,"%d",session->size);
+			write(uart_fd, data_buff, 20);
+			printf("length is send\n\n");
+			printf("wait for it's ready!\n");
+			if((nread = uart_read(uart_fd, protocol_buff, 1 ,1)) > 0)
+			{
+				if(protocol_buff[0] == COM_START)
+				{	
+					printf("ready to send jpg data!\n");
+					write(uart_fd, buffer, (int)session->size);
+					printf("jpg data is send!\n");
+					printf("wait for it's ready!\n");
+					if((nread = uart_read(uart_fd, protocol_buff, 1, 1)) > 0)
+					{
+						if(protocol_buff[0] == COM_START)
+						{
+							printf("ready to send P_END!\n");
+							write(uart_fd, p_end, 1);
+							printf("p_end is send!\n");
+							printf("wait for it's ready!\n");
+							if((nread = uart_read(uart_fd, protocol_buff, 1, 1)) > 0)
+							{
+								if(protocol_buff[0] == COM_START)
+								printf("p_end is send!\n");
+								else printf("have not recive p_end!\n");
+							}
+							else printf("P_END isn't read!\n");
+						}
+						else printf("not ready!\n");
+					}
+					else printf("can't begin to send data!\n");
+				}
+				else printf("have not read com_start!\n");
+			}
+			else printf("Don't recive com_start!\n");
+		}
+		else printf("have not read data!\n");
+	}
+	else printf("error!\n");
 
 
 free(buffer);
-
-fclose( stream );
-
-
+close(uart_fd);
+//fclose( stream );
 }
 
-
+*/
