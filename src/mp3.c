@@ -10,7 +10,6 @@
 #include <linux/soundcard.h>
 
 
-
 #if (defined i386 && defined linux) 
 /* Use the newer ALSA API */
 #define ALSA_PCM_NEW_HW_PARAMS_API
@@ -147,9 +146,7 @@ if(!mem_inited)
 {
 	address=malloc(MP3_DECODE_MP_SZ * 2);
 
-#if (defined i386 && defined linux)
-	playback.data_buf=address;
-#endif
+
 
 	mem_inited=1;
 }
@@ -294,15 +291,9 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 				}
 				outputSamps *= 2;
 			}
-#if (defined i386 && defined linux)
-			//frames=outputSamps/2;
-			//  snd_pcm_writei(handle, buffer, frames);
-			//SNDWAV_WritePcm(buffer, outputSamps * sizeof(rt_uint16_t));
 
-#else
 			snd_write(buffer, outputSamps * sizeof(rt_uint16_t));	
 
-#endif
 
 	
 		//	rt_device_write(decoder->snd_device, 0, buffer, outputSamps * sizeof(rt_uint16_t));
@@ -317,6 +308,26 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 	return 0;
 }
 
+
+
+void mp3_decoder_detach(struct mp3_decoder* decoder)
+{
+    assert(decoder != 0);
+
+	/* release mp3 decoder */
+    MP3FreeDecoder(decoder->decoder);
+}
+
+
+void mp3_decoder_delete(struct mp3_decoder* decoder)
+{
+    assert(decoder != 0);
+
+	/* de-init mp3 decoder object */
+	mp3_decoder_detach(decoder);
+	/* release this object */
+    free(decoder);
+}
 
 rt_size_t fd_fetch(void* parameter, rt_uint8_t *buffer, rt_size_t length)
 {
@@ -356,7 +367,7 @@ void mp3(char* filename)
 			while (mp3_decoder_run(decoder) != -1);
 //
 			/* delete decoder object */
-			//mp3_decoder_delete(decoder);
+			mp3_decoder_delete(decoder);
 		}
 		fclose(stream);
 
@@ -435,10 +446,9 @@ printf("%s:%s\n",douban->items[0].artist,douban->items[0].title );
 				while (mp3_decoder_run(decoder) != -1);
 
 				/* delete decoder object */
-				//mp3_decoder_delete(decoder);
-		//	}
+				mp3_decoder_delete(decoder);
+			}
 
-		}
 }
 
 
@@ -476,7 +486,7 @@ void ice_mp3(const char* url)
 				while (mp3_decoder_run(decoder) != -1);
 
 				/* delete decoder object */
-				//mp3_decoder_delete(decoder);
+				mp3_decoder_delete(decoder);
 	
 			}
 

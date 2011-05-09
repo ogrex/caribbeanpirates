@@ -9,20 +9,20 @@ int i;
 
 
 
-struct file_item* file=(struct file_item*) malloc(sizeof(struct file_item));
-memset( file,0,sizeof(struct file_item));
-sd_item(file);
-for(i=0;i<file->size;i++) printf("%s\n",file->items[i]);
+//struct file_item* file=(struct file_item*) malloc(sizeof(struct file_item));
+//memset( file,0,sizeof(struct file_item));
+//sd_item(file);
+//for(i=0;i<file->size;i++) printf("%s\n",file->items[i]);
 
 
 
 init_dev(22050);
 
 
-sprintf(xx,"%s%s","/mnt/",file->items[2]);
-mp3(xx);
+//sprintf(xx,"%s%s","/mnt/",file->items[2]);
+//mp3("/nfs/home/caribbeanpirates/bin/test.mp3");
 //ice_mp3(xx);
-//douban_radio(2);
+douban_radio(2);
 return 0;
 
 
