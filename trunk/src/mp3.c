@@ -4,10 +4,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <dirent.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <linux/soundcard.h>
+
 
 
 #if (defined i386 && defined linux) 
@@ -22,8 +24,6 @@
 #include "douban_radio.h"
 #include "mp3dec.h"
 #include "def.h"
-#include "device.h"
-
 
 #define MP3_AUDIO_BUF_SZ    (5 * 1024)
 #ifndef MIN
@@ -40,21 +40,10 @@ int current_sample_rate = 0;
 
 int mem_inited=0;
 
+int fd;	/* sound device file descriptor */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+extern int uart_fd;
+extern char protocol_buff[1];
 
 struct mp3_decoder
 {
@@ -145,9 +134,6 @@ static void* address;
 if(!mem_inited)
 {
 	address=malloc(MP3_DECODE_MP_SZ * 2);
-
-
-
 	mem_inited=1;
 }
     return address;
@@ -167,7 +153,7 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 	rt_uint16_t* buffer;
 	rt_uint32_t  delta;
 
-	int i;
+
 //	if (player_is_playing() != RT_TRUE) return -1;
 
 	if ((decoder->read_ptr == NULL) || decoder->bytes_left < 2*MAINBUF_SIZE)
@@ -257,14 +243,17 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 		int outputSamps;
 		/* no error */
 		MP3GetLastFrameInfo(decoder->decoder, &decoder->frame_info);
+/*
 
-
-		printf("samplerate:%d bps:%d  frame:%d ",
+		printf("outputSamps:%d samplerate:%d bps:%d bitPerSample:%d frame:%d ",
+			decoder->frame_info.outputSamps,
 			decoder->frame_info.samprate,
 			decoder->frame_info.bitrate,
+			decoder->frame_info.bitsPerSample,
 			(int)decoder->frames);
-		fflush(stdout);printf("\r");
-		
+*/
+		fflush(stdout);
+		printf("\r");
 
         /* set sample rate */
 		if (decoder->frame_info.samprate != current_sample_rate)
@@ -292,7 +281,8 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 				outputSamps *= 2;
 			}
 
-			snd_write(buffer, outputSamps * sizeof(rt_uint16_t));	
+		
+			write(fd, buffer, outputSamps * sizeof(rt_uint16_t));
 
 
 	
@@ -305,29 +295,12 @@ int mp3_decoder_run(struct mp3_decoder* decoder)
 		}
 	}
 
+if(uart_read(uart_fd, protocol_buff, 1, 0) > 0)
+return -1;
+
 	return 0;
 }
 
-
-
-void mp3_decoder_detach(struct mp3_decoder* decoder)
-{
-    assert(decoder != 0);
-
-	/* release mp3 decoder */
-    MP3FreeDecoder(decoder->decoder);
-}
-
-
-void mp3_decoder_delete(struct mp3_decoder* decoder)
-{
-    assert(decoder != 0);
-
-	/* de-init mp3 decoder object */
-	mp3_decoder_detach(decoder);
-	/* release this object */
-    free(decoder);
-}
 
 rt_size_t fd_fetch(void* parameter, rt_uint8_t *buffer, rt_size_t length)
 {
@@ -340,6 +313,7 @@ rt_size_t fd_fetch(void* parameter, rt_uint8_t *buffer, rt_size_t length)
 
 	return read_bytes;
 }
+
 void mp3(char* filename)
 {
 
@@ -367,15 +341,154 @@ void mp3(char* filename)
 			while (mp3_decoder_run(decoder) != -1);
 //
 			/* delete decoder object */
-			mp3_decoder_delete(decoder);
+			//mp3_decoder_delete(decoder);
 		}
 		fclose(stream);
 
 }
 
 
+void init_dir()
+{
+int i=0;
+char mm[30];
+char * mn="/mnt/";
+struct dirent * direntp;
+DIR * dirp;
+dirp=opendir("/mnt/");
+while ((direntp =readdir(dirp))!=NULL)
+{i++;
+printf("ff");
+if(strstr(direntp->d_name,".mp3")!=NULL) {
+sprintf(mm,"%s%s",mn,direntp->d_name);
+
+printf("%s\n",mm);
+}
+
+if(8==i){mp3(mm);}
+
+}
 
 
+}
+
+
+
+
+
+#if (defined i386 && defined linux) 
+int init_dev(int freq)
+{
+int rc;
+snd_pcm_t *handle;
+snd_pcm_hw_params_t *params;
+
+
+long loops;
+
+int size;
+
+
+unsigned int val;
+int dir;
+snd_pcm_uframes_t frames;
+char *buffer;
+
+
+/* Open PCM device for playback. */
+rc = snd_pcm_open(&handle, "default",
+SND_PCM_STREAM_PLAYBACK, 0);
+
+if (rc < 0) {
+fprintf(stderr,
+"unable to open pcm device: %s\n",
+snd_strerror(rc));
+exit(1);
+}
+printf("pcm device opened!\n");
+
+/* Allocate a hardware parameters object. */
+snd_pcm_hw_params_alloca(&params);
+/* Fill it in with default values. */
+snd_pcm_hw_params_any(handle, params);	
+
+
+/* Set the desired hardware parameters. */
+
+/* Interleaved mode */
+snd_pcm_hw_params_set_access(handle, params,
+SND_PCM_ACCESS_RW_INTERLEAVED);
+
+/* Signed 16-bit little-endian format */
+snd_pcm_hw_params_set_format(handle, params,
+SND_PCM_FORMAT_S16_LE);
+
+/* Two channels (stereo) */
+snd_pcm_hw_params_set_channels(handle, params, 2);
+
+/* 44100 bits/second sampling rate (CD quality) */
+val = freq;
+snd_pcm_hw_params_set_rate_near(handle, params,
+&val, &dir);
+
+/* Set period size to 32 frames. */
+frames = 32;
+snd_pcm_hw_params_set_period_size_near(handle,
+params, &frames, &dir);
+
+/* Write the parameters to the driver */
+rc = snd_pcm_hw_params(handle, params);
+if (rc < 0) {
+fprintf(stderr,
+"unable to set hw parameters: %s\n",
+snd_strerror(rc));
+exit(1);
+}
+
+
+
+}
+
+
+
+#else
+int init_dev(int freq)
+{
+
+int arg,status;
+  arg = 2;  /* mono or stereo */ 
+
+ /* open sound device */
+  fd = open("/dev/dsp", 1);
+  if (fd < 0) {
+    perror("open of /dev/dsp failed");
+    exit(1);
+  }
+
+  /* set sampling parameters */
+  arg = 16;	   /* sample size */
+  status = ioctl(fd, SOUND_PCM_WRITE_BITS, &arg);
+  if (status == -1)
+    perror("SOUND_PCM_WRITE_BITS ioctl failed");
+
+
+  arg = 2;  /* mono or stereo */
+  status = ioctl(fd, SOUND_PCM_WRITE_CHANNELS, &arg);
+  if (status == -1)
+    perror("SOUND_PCM_WRITE_CHANNELS ioctl failed");
+
+
+  arg = freq;	   /* sampling rate */
+  status = ioctl(fd, SOUND_PCM_WRITE_RATE, &arg);
+  if (status == -1)
+    perror("SOUND_PCM_WRITE_WRITE ioctl failed");
+
+
+return 0;
+}
+
+
+#endif
 
 
 struct douban_radio* douban_radio_open(int channel)
@@ -402,36 +515,36 @@ rt_size_t douban_radio_data_fetch(void* parameter, rt_uint8_t *buffer, rt_size_t
 
 }
 
-void douban_radio(int channel)
+void douban_radio(char *url)
 {   
-    struct douban_radio* douban;
+    //struct douban_radio* douban;
 	struct mp3_decoder* decoder;
 
-	int index;
+	//int index;
 
 
 
 	struct http_session* session;
 
 
-	douban = douban_radio_open(channel);
+	//douban = douban_radio_open(channel);
 
-	douban_radio_playlist_load(douban);
-
-
-printf("items:\t%d\n",douban->size );
-	for (index = 0; index < douban->size; index ++)
-	{
-		printf("%d\t%s\t\t%s\n", index,douban->items[index].artist, douban->items[index].title);
-
-	}
+	//douban_radio_playlist_load(douban);
 
 
+//printf("items:\t%d\n",douban->size );
+	//for (index = 0; index < douban->size; index ++)
+	//{
+		//printf("%d\t%s\t\t%s\n", index,douban->items[index].artist, douban->items[index].title);
+
+	//}
 
 
-session=http_session_open(douban->items->url) ;
 
-printf("%s:%s\n",douban->items[0].artist,douban->items[0].title );
+
+//session=http_session_open(douban->items->url) ;
+			session=http_session_open(url);
+//printf("%s:%s\n",douban->items[0].artist,douban->items[0].title );
 
 			decoder = mp3_decoder_create();
 			if (decoder != 0)
@@ -441,14 +554,13 @@ printf("%s:%s\n",douban->items[0].artist,douban->items[0].title );
 
 				current_offset = 0;
 
-
-
 				while (mp3_decoder_run(decoder) != -1);
 
 				/* delete decoder object */
-				mp3_decoder_delete(decoder);
-			}
+				//mp3_decoder_delete(decoder);
+		//	}
 
+		}
 }
 
 
@@ -486,7 +598,7 @@ void ice_mp3(const char* url)
 				while (mp3_decoder_run(decoder) != -1);
 
 				/* delete decoder object */
-				mp3_decoder_delete(decoder);
+				//mp3_decoder_delete(decoder);
 	
 			}
 

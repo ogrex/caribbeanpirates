@@ -201,7 +201,7 @@ rt_size_t douban_radio_read(struct douban_radio* douban, char *buffer, rt_size_t
 			// rt_kprintf("open session url[%d]: %s\n", douban->current,
 			//	douban->items[douban->current].url);
 			douban->session = http_session_open(douban->items[douban->current].url);
-			printf("I am here\n");
+			//printf("I am here\n");
 			if (douban->session == 0)
 			{
 				/* can't open this link */
@@ -217,7 +217,7 @@ rt_size_t douban_radio_read(struct douban_radio* douban, char *buffer, rt_size_t
 
 		/* read http client data */
 		rx_length = http_session_read(douban->session, ptr, length);
-		printf("read data from the mp3 http_session\n");
+		//printf("read data from the mp3 http_session\n");
 		if (rx_length <= 0)
 		{
 			/* close this session */
